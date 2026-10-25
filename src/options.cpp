@@ -118,6 +118,114 @@ MonteCarloResult monte_carlo_price(const Contract& c, std::uint64_t paths, std::
     return {mean,se,mean-1.959963984540054*se,mean+1.959963984540054*se,paths};
 }
 
+MonteCarloResult american_monte_carlo_price(const Contract& c,std::uint64_t paths,
+                                             std::size_t steps,std::uint64_t seed) {
+    validate(c);
+    if(c.style!=ExerciseStyle::american) throw std::invalid_argument("Longstaff-Schwartz requires American exercise style");
+    if(paths<4 || steps==0) throw std::invalid_argument("American Monte Carlo requires at least four paths and one time step");
+    if(paths%2!=0) --paths;
+    if(c.time_to_expiry==0.0) {
+        const double p=payoff(c.type,c.spot,c.strike);
+        return {p,0.0,p,p,paths};
+    }
+    if(c.volatility==0.0) {
+        const double p=binomial_price(c,steps);
+        return {p,0.0,p,p,paths};
+    }
+    const std::size_t path_count=static_cast<std::size_t>(paths), columns=steps+1;
+    if(columns>std::numeric_limits<std::size_t>::max()/path_count)
+        throw std::length_error("American Monte Carlo path matrix is too large");
+    const std::size_t pairs=path_count/2;
+    std::vector<double> spots(path_count*columns);
+    const double dt=c.time_to_expiry/static_cast<double>(steps);
+    const double drift=(c.rate-c.dividend_yield-.5*c.volatility*c.volatility)*dt;
+    const double diffusion=c.volatility*std::sqrt(dt);
+    std::mt19937_64 rng(seed); std::normal_distribution<double> normal;
+    for(std::size_t p=0;p<pairs;++p) {
+        double up_spot=c.spot, down_spot=c.spot;
+        spots[p*columns]=c.spot; spots[(pairs+p)*columns]=c.spot;
+        for(std::size_t t=1;t<columns;++t) {
+            const double z=normal(rng);
+            up_spot*=std::exp(drift+diffusion*z);
+            down_spot*=std::exp(drift-diffusion*z);
+            if(!std::isfinite(up_spot)||!std::isfinite(down_spot))
+                throw std::overflow_error("simulated option path overflowed; check volatility and expiry inputs");
+            spots[p*columns+t]=up_spot;
+            spots[(pairs+p)*columns+t]=down_spot;
+        }
+    }
+
+    std::vector<double> cashflow(path_count);
+    std::vector<std::size_t> exercise_step(path_count,steps);
+    for(std::size_t p=0;p<path_count;++p)
+        cashflow[p]=payoff(c.type,spots[p*columns+steps],c.strike);
+
+    for(std::size_t step=steps;step-->1;) {
+        double max_abs_x=0.0; std::size_t itm_count=0;
+        for(std::size_t p=0;p<path_count;++p) {
+            const double s=spots[p*columns+step];
+            if(payoff(c.type,s,c.strike)>0.0) {
+                max_abs_x=std::max(max_abs_x,std::abs(std::log(s/c.strike)));
+                ++itm_count;
+            }
+        }
+        if(itm_count<4) continue;
+        const double scale=std::max(max_abs_x,1e-12);
+        double matrix[3][4]{};
+        for(std::size_t p=0;p<path_count;++p) {
+            const double s=spots[p*columns+step], immediate=payoff(c.type,s,c.strike);
+            if(immediate<=0.0) continue;
+            const double x=std::log(s/c.strike)/scale, basis[3]={1.0,x,x*x};
+            const double y=cashflow[p]*std::exp(-c.rate*static_cast<double>(exercise_step[p]-step)*dt);
+            for(int row=0;row<3;++row) {
+                for(int col=0;col<3;++col) matrix[row][col]+=basis[row]*basis[col];
+                matrix[row][3]+=basis[row]*y;
+            }
+        }
+        bool fit_ok=true;
+        for(int col=0;col<3;++col) {
+            int pivot=col;
+            for(int row=col+1;row<3;++row)
+                if(std::abs(matrix[row][col])>std::abs(matrix[pivot][col])) pivot=row;
+            if(std::abs(matrix[pivot][col])<1e-12) {fit_ok=false;break;}
+            if(pivot!=col) for(int j=col;j<4;++j) std::swap(matrix[pivot][j],matrix[col][j]);
+            const double divisor=matrix[col][col];
+            for(int j=col;j<4;++j) matrix[col][j]/=divisor;
+            for(int row=0;row<3;++row) if(row!=col) {
+                const double factor=matrix[row][col];
+                for(int j=col;j<4;++j) matrix[row][j]-=factor*matrix[col][j];
+            }
+        }
+        if(!fit_ok) continue;
+        const double beta[3]={matrix[0][3],matrix[1][3],matrix[2][3]};
+        for(std::size_t p=0;p<path_count;++p) {
+            const double s=spots[p*columns+step], immediate=payoff(c.type,s,c.strike);
+            if(immediate<=0.0) continue;
+            const double x=std::log(s/c.strike)/scale;
+            const double continuation=beta[0]+beta[1]*x+beta[2]*x*x;
+            if(immediate>continuation) {cashflow[p]=immediate;exercise_step[p]=step;}
+        }
+    }
+
+    std::vector<double> pair_values(pairs);
+    for(std::size_t p=0;p<pairs;++p) {
+        const double first=cashflow[p]*std::exp(-c.rate*static_cast<double>(exercise_step[p])*dt);
+        const double second=cashflow[pairs+p]*std::exp(-c.rate*static_cast<double>(exercise_step[pairs+p])*dt);
+        pair_values[p]=.5*(first+second);
+    }
+    double mean=0.0,m2=0.0;
+    for(std::size_t p=0;p<pairs;++p) {
+        const double delta=pair_values[p]-mean;
+        mean+=delta/static_cast<double>(p+1);
+        m2+=delta*(pair_values[p]-mean);
+    }
+    const double intrinsic=payoff(c.type,c.spot,c.strike);
+    const bool exercise_now=intrinsic>mean;
+    if(exercise_now) mean=intrinsic;
+    const double se=exercise_now?0.0:std::sqrt(m2/(static_cast<double>(pairs-1)*static_cast<double>(pairs)));
+    return {mean,se,mean-1.959963984540054*se,mean+1.959963984540054*se,paths};
+}
+
 std::optional<ImpliedVolResult> implied_volatility(Contract c,double market_price,double price_tol,double vol_tol,std::size_t max_iter) {
     validate(c);
     if(c.style!=ExerciseStyle::european) throw std::invalid_argument("implied volatility solver supports European exercise only");

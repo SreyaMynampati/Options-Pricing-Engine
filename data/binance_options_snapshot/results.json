@@ -1,0 +1,52 @@
+{
+  "provider": "Binance Options public REST API",
+  "underlying": "BTCUSDT",
+  "captured_at_utc": "2026-10-25T17:00:06+00:00",
+  "index_time_ms": 1792947606000,
+  "spot_index": 80811.74695652,
+  "exchange_server_time_ms": 1792947607687,
+  "endpoint_capture_time_ms": {
+    "exchangeInfo": 1792947608199,
+    "mark": 1792947607837,
+    "ticker": 1792947607908,
+    "index": 1792947607789
+  },
+  "endpoint_latency_seconds": {
+    "exchangeInfo": 0.6555569171905518,
+    "mark": 0.2930581569671631,
+    "ticker": 0.3631417751312256,
+    "index": 0.24349689483642578
+  },
+  "trading_symbols_in_exchange_info": 622,
+  "joined_contract_rows": 622,
+  "market_data_endpoints": {
+    "exchangeInfo": "https://eapi.binance.com/eapi/v1/exchangeInfo",
+    "mark": "https://eapi.binance.com/eapi/v1/mark",
+    "ticker": "https://eapi.binance.com/eapi/v1/ticker",
+    "index": "https://eapi.binance.com/eapi/v1/index"
+  },
+  "eligible_two_sided_iv_quotes": 605,
+  "chain_rows": 622,
+  "expiry_count": 11,
+  "surface_fit": {
+    "calibrated_expiries": 11,
+    "quote_count_fit": 605,
+    "smile_weighted_rmse_iv_median": 0.006001469196531401,
+    "smile_weighted_rmse_iv_max": 0.02100742221373667,
+    "calendar_total_variance_violations": 1,
+    "calendar_checks": 410,
+    "butterfly_arbitrage_free_guarantee": false,
+    "calendar_violation_fraction": 0.0024390243902439024
+  },
+  "mid_quote_iv_vs_exchange_mark_iv": {
+    "comparison_count": 605,
+    "median_abs_difference": 0.007839122177168756,
+    "rmse": 0.07777892720080518
+  },
+  "files": [
+    "chain_quotes.csv",
+    "calibrated_smiles.csv",
+    "surface_grid.csv"
+  ],
+  "scope_note": "Snapshot marks and top-of-book quotes are live at capture, not a historical chain. Quadratic smile fits are not guaranteed free of butterfly/calendar arbitrage."
+}

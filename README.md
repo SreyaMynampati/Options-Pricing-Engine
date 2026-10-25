@@ -1,40 +1,60 @@
 <div align="center">
 
 # VOLTERRA
-### Options pricing and implied volatility, engineered for the tape
+### Stochastic Models & Numerical Methods for Derivative Pricing
 
-**C++23 pricing core · NumPy research surface · explicit numerical limits**
+**Risk-neutral valuation · Greeks · optimal stopping · implied-volatility calibration**
 
-[![C++23](https://img.shields.io/badge/C%2B%2B-23-00599C?logo=cplusplus&logoColor=white)](#build-the-c-engine)
-[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](#python--numpy)
-[![NumPy](https://img.shields.io/badge/NumPy-vectorized-013243?logo=numpy&logoColor=white)](#python--numpy)
+[![C++23](https://img.shields.io/badge/C%2B%2B-23-00599C?logo=cplusplus&logoColor=white)](#build-and-run)
+[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](#python-workflows)
+[![NumPy](https://img.shields.io/badge/NumPy-vectorized-013243?logo=numpy&logoColor=white)](#python-workflows)
 [![License](https://img.shields.io/badge/license-MIT-2ea44f)](LICENSE)
 
-*A small, inspectable foundation for pricing, risk, and volatility research.*
+A mathematical-finance research engine for derivative valuation under stochastic models. Its implemented methods span Black–Scholes risk-neutral valuation, sensitivity analysis, lattice and regression-based optimal stopping, Monte Carlo estimation, safeguarded nonlinear root-finding, and empirical volatility-surface calibration. The C++23 core and NumPy tools are paired with Binance BTC market data and reproducible numerical results.
+
+For beginners: an option is a contract whose value depends on an underlying asset such as Bitcoin. Give the engine the asset price, strike, expiry, interest rate, and volatility, and its pricing models estimate the option's value today. Greeks describe how that estimate responds to changes in market inputs; implied volatility reverses the calculation to find the volatility consistent with an observed quote.
+
+For a European payoff $H(S_T)$, the risk-neutral valuation implemented by the engine is $V_0 = e^{-rT}\mathbb{E}^{\mathbb{Q}}[H(S_T)]$. The project compares analytic valuation with tree and Monte Carlo estimates, and solves $V_{BS}(\sigma)=V_{market}$ for implied volatility. Its historical BTC study uses real spot candles; historical option marks are model illustrations, not recorded trades.
 
 </div>
 
-> **Status: early-stage research software.** The library is not production trading infrastructure. It can download historical Binance spot candles, but it does not yet provide a live feed, calibrate a full surface, model American exercise with Monte Carlo, or apply exchange-specific calendars and contract rules. Those boundaries are documented rather than hidden behind optimistic claims.
+## What it does
 
-## At a glance
+| Component | Implemented behavior |
+|---|---|
+| C++23 pricing | European Black–Scholes–Merton price and Greeks; Cox–Ross–Rubinstein tree; antithetic European Monte Carlo; Longstaff–Schwartz American Monte Carlo |
+| Implied volatility | Safeguarded Newton iteration with a maintained bracket and bisection fallback; theoretical price-bound checks |
+| Python analytics | NumPy-broadcasting Black–Scholes prices, Greeks, and implied volatility |
+| Historical underlying data | Downloads Binance BTCUSDT daily spot candles, calculates trailing realized volatility, and creates lagged illustrative next-open marks |
+| Live options snapshot | Captures Binance BTC option contracts, index price, top-of-book bid/ask, mark prices, and exchange mark IV |
+| Volatility surface | Solves IV from two-sided quote midpoints, fits a weighted quadratic smile per expiry, and interpolates total variance between expiries without extrapolating |
 
-| Need | Available now | Practical note |
-|---|---|---|
-| European vanilla price and Greeks | Black–Scholes–Merton | Continuous rates and dividend yield; annualized inputs |
-| Early exercise | Cox–Ross–Rubinstein binomial tree | American calls and puts; grid convergence and tree probability matter |
-| Independent price estimate | Antithetic Monte Carlo | European terminal payoff; deterministic seed and approximate 95% interval |
-| Implied volatility | Safeguarded Newton with bisection fallback | European quotes; checks no-arbitrage bounds and reports non-convergence |
-| Research workflow | Python + NumPy broadcasting | Vectorized European price and implied volatility |
-| Historical spot data | Binance BTCUSDT daily downloader | Public OHLCV only; no historical option quotes, stale-quote policy, or live feed |
-| Data quality / surface | Integration boundary | Quote normalization, calendars, and surface fitting remain caller responsibilities |
+## Measured results
 
-## Why this project exists
+The saved market-data result files were generated from Binance's public APIs. The benchmark values below come from a local Release build; source timestamps and assumptions are recorded with the data.
 
-Options code is easy to make plausible and hard to make trustworthy. A fast price is not useful if it silently accepts crossed or stale markets, uses a mismatched day-count convention, loses the solver near expiry, or reports Monte Carlo noise as certainty. Volterra starts with explicit units, input checks, deterministic reproducibility, safeguarded numerical methods, and clear model boundaries.
+| Result | Measurement |
+|---|---:|
+| Historical BTCUSDT spot candles | 3,356 daily candles, 2017-08-17 to 2026-10-24; the requested ten-year window starts earlier than the pair's available history |
+| Trailing 30-day realized volatility on that spot sample | Median 55.04%; range 16.76%–211.78% |
+| Binance BTC options snapshot | 2026-10-25 17:00:06 UTC; index 80,811.75; 622 active BTCUSDT contracts joined across 11 expiries |
+| Two-sided option quotes with finite midpoint IV | 605 contracts |
+| Weighted smile fit error | Median 0.600 volatility points across expiries; worst expiry 2.101 points |
+| Calendar total-variance check | 1 violation across 410 adjacent-expiry/moneyness checks (0.24%); the fitted surface is **not guaranteed arbitrage-free** |
+| Saved surface query | 38.57% IV at ATM log-forward-moneyness and 0.25-year tenor |
+| Midpoint-derived IV vs Binance mark IV | Median absolute difference 0.784 volatility points; RMSE 7.778 points, reflecting noisy and wide quotes in the snapshot |
+| C++ Black–Scholes throughput | 12.59 million varied contract prices/second; 79.412 ns/price median loop time |
+| C++ 512-step American CRR put | 6.985 ms median per price; price 6.691 |
+| C++ antithetic Monte Carlo | 250,000 paths in 9.018 ms median; estimate 8.081, standard error 0.019 |
+| C++ American Longstaff–Schwartz Monte Carlo | 50,000 paths × 50 steps in 324.081 ms median; estimate 6.665, standard error 0.020 |
 
-## Build the C++ engine
+These are the results from the run shown above, using a Release build. Black–Scholes throughput is the median of seven timed one-million-contract loops after a warm-up. Tree and Monte Carlo timings are medians over repeated runs. Benchmark results vary by machine and build settings; these numbers are measurements, not a portable latency guarantee.
 
-Requires a C++23 compiler and CMake 3.20+.
+The C++ demo's European call price is **5.548166**. Its 500,000-path Monte Carlo estimate is **5.536364**, with reported 95% interval **[5.512437, 5.560290]**. The same demo recovers its input volatility of **25.0000%** from the analytic price. Validation checks the canonical one-year ATM call (**10.4505835722**), put-call parity, finite-difference Greeks, tree convergence, American exercise bounds, solver round-trips, invalid inputs, and deterministic Monte Carlo seeding. Longstaff–Schwartz tests compare an American put to a 1,000-step CRR reference and an American call without dividends to its Black–Scholes value.
+
+## Build and run
+
+Requires CMake 3.20+ and a C++23 compiler.
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -42,145 +62,96 @@ cmake --build build -j
 ./build/volterra_demo
 ```
 
-Example output (values are generated by the demo at runtime):
-
-```text
-European call (Black-Scholes): ...
-European call delta / gamma / vega: ...
-American put (CRR tree): ...
-European call (MC, 95% CI): ... [..., ...]
-Recovered implied volatility: ...
-```
-
-The demo prices the same European call analytically and by simulation, prices an American put on a tree, and recovers volatility from its own model price. Run it on your machine to see actual output; no hardware-independent latency or accuracy numbers are claimed here.
-
-Run the numerical validation checks after building:
+Run the C++ and Python validation suites:
 
 ```bash
 ctest --test-dir build --output-on-failure
-python -m pip install -e .
 python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-### Small C++ example
+Run the local C++ benchmark:
 
-```cpp
-#include <volterra/options.hpp>
-#include <iostream>
-
-int main() {
-    using namespace volterra;
-    Contract call{OptionType::call, ExerciseStyle::european,
-                  100.0, 105.0, 0.5, 0.04, 0.01, 0.25};
-    const auto risk = black_scholes(call);
-    std::cout << "price=" << risk.price << " delta=" << risk.delta << '\n';
-
-    const auto estimate = monte_carlo_price(call, 500'000, 2026);
-    std::cout << "MC=" << estimate.price << " +/- 1.96*" << estimate.standard_error << '\n';
-
-    const auto iv = implied_volatility(call, risk.price);
-    if (iv && iv->converged) std::cout << "IV=" << iv->volatility << '\n';
-}
+```bash
+./build/volterra_bench
 ```
 
-Consumers can link the `volterra::volterra` CMake target and include `volterra/options.hpp`.
+## Python workflows
 
-## Python + NumPy
-
-Install the local package in editable mode:
+Install the project and its NumPy dependency:
 
 ```bash
 python -m pip install -e .
 ```
+
+Vectorized price and IV example:
 
 ```python
 import numpy as np
 from volterra import black_scholes, implied_volatility
 
 spots = np.array([95.0, 100.0, 105.0])
-prices = black_scholes(spots, 100.0, 30/365, 0.045, 0.30,
-                       option="call", dividend_yield=0.012)
-vols = implied_volatility(prices, spots, 100.0, 30/365, 0.045,
-                          option="call", dividend_yield=0.012)
-print(prices)  # array, broadcast over the spot dimension
-print(vols)    # approximately [0.30, 0.30, 0.30]
+prices = black_scholes(spots, 100.0, 30/365, 0.045, 0.30, option="call")
+vols = implied_volatility(prices, spots, 100.0, 30/365, 0.045, option="call")
+print(prices)
+print(vols)  # approximately [0.30, 0.30, 0.30]
 ```
 
-Set `greeks=True` to get `(price, delta, gamma, vega, theta, rho)`. Vega and rho are derivatives per 1.00 change in volatility and rate. Theta is calendar-time decay per year. Invalid quotes in the Python IV solver return `NaN`, which makes bad inputs visible in vector workflows.
+With `greeks=True`, `black_scholes` returns `(price, delta, gamma, vega, theta, rho)`. Vega and rho are per 1.00 change in volatility and rate; theta is calendar-time decay per year.
 
-## Binance BTCUSDT historical study
+Load the saved fitted surface and query a volatility at log-forward-moneyness `k` and tenor `T` (years):
 
-Fetch public Binance **daily spot klines** and generate the derived study files:
+```python
+from volterra.options_market import load_surface
+
+surface = load_surface("data/binance_options_snapshot/calibrated_smiles.csv")
+iv = surface.volatility(log_forward_moneyness=0.0, time_years=0.25)
+print(iv)
+```
+
+Queries outside the fitted maturity or moneyness ranges raise `ValueError`; the surface does not extrapolate.
+
+## Reproduce the Binance data
+
+Download the latest completed daily BTCUSDT spot history and produce the historical study:
 
 ```bash
-python -m pip install -e .
 python -m volterra.binance --symbol BTCUSDT --years 10 --out data/binance_btcusdt_10y
 ```
 
-The downloader uses Binance's unauthenticated public market-data endpoint, paginates in UTC, retries temporary throttling/server errors, and excludes the still-forming current UTC candle. See Binance's [market-data-only REST endpoint list](https://github.com/binance/binance-spot-api-docs/blob/master/faqs/market_data_only.md) and [Spot REST API documentation](https://github.com/binance/binance-spot-api-docs/blob/master/rest-api.md#klinecandlestick-data).
+Capture and calibrate a current BTC options market snapshot:
 
-This run downloaded **3,356 BTCUSDT daily spot candles**, from **2017-08-17 through 2026-10-24**. Binance did not have this BTCUSDT spot pair for the full requested ten-year window, so the available history begins later than the requested 2016-10-27 start. Across the sample, trailing 30-day annualized realized volatility had a median of **55.0%**, minimum **16.8%**, and maximum **211.8%**. To avoid look-ahead, option marks use volatility known at the prior daily close and price at the next consecutive daily open: the latest eligible signal was **24.69%** on 2026-10-23, executed illustratively at the 2026-10-24 open of **$81,189.44**. Its hypothetical 30-day ATM call and put marks were each about **$2,292.29** under the stated flat-rate assumptions.
+```bash
+python -m volterra.options_market --out data/binance_options_snapshot
+```
 
-The generated files are:
+Both commands use public, unauthenticated Binance market data. The spot downloader uses daily klines. The options workflow combines exchange contract information, the BTCUSDT index, option mark data, and option ticker bid/ask quotes. Binance documents the [Options market-data endpoints](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data) and [public Spot market-data endpoints](https://github.com/binance/binance-spot-api-docs/blob/master/faqs/market_data_only.md).
 
-- `data/binance_btcusdt_10y/binance_spot_daily.csv` — the raw public OHLCV candles.
-- `data/binance_btcusdt_10y/illustrative_options.csv` — signal availability, prior-close trailing volatility, next-day open, and hypothetical 30-day ATM European call/put marks.
-- `data/binance_btcusdt_10y/universe_ledger.csv` — explicit symbol selection and observed coverage; this one-symbol ledger is not a point-in-time market universe.
-- `data/binance_btcusdt_10y/bias_audit.json` — machine-readable look-ahead and survivorship limitations.
-- `data/binance_btcusdt_10y/metadata.json` — requested and actual date ranges, source, assumptions, and summary statistics.
+## Result files
 
-Those option prices are **model illustrations**, not historical Binance option quotes. They use trailing realized volatility as a proxy, a flat 0% continuously compounded rate, zero dividend yield, and the next day's opening spot as the ATM strike. The feature window ends at the prior close; execution is delayed to the next candle open, and there is no same-close fill. They cannot be used as historical implied volatility or as a real options backtest. To calibrate IV to actual market prices, the project needs historical options quotes/trades and aligned underlying/curve data.
+- `data/binance_btcusdt_10y/binance_spot_daily.csv` — raw daily BTCUSDT spot OHLCV.
+- `data/binance_btcusdt_10y/illustrative_options.csv` — prior-close realized-volatility signals and hypothetical next-open Black–Scholes marks.
+- `data/binance_btcusdt_10y/metadata.json` and `bias_audit.json` — date coverage, assumptions, and bias notes.
+- `data/binance_options_snapshot/chain_quotes.csv` — captured BTC option chain with bid, ask, midpoint, mark, mark IV, and midpoint-derived IV where eligible.
+- `data/binance_options_snapshot/calibrated_smiles.csv` — per-expiry fitted smile coefficients and errors.
+- `data/binance_options_snapshot/surface_grid.csv` — fitted IV values across each expiry's observed moneyness range.
+- `data/binance_options_snapshot/results.json` — capture time, quote counts, surface-fit diagnostics, and comparisons to Binance marks.
 
-### Bias controls and limits
+## Models and conventions
 
-- **Look-ahead:** the study records when the feature becomes available and prices at the next consecutive UTC candle open. It does not price using volatility calculated from that execution day's close. The final candle has no next-day mark until another completed daily candle is downloaded. These are illustrative marks, not strategy returns.
-- **Survivorship:** this dataset is one user-selected asset, so it does not rank a current list of coins and call the winners a historical portfolio. However, it cannot establish how a multi-asset strategy would have performed: its ledger is not a complete point-in-time roster and does not include delisted or renamed pairs. Such research requires point-in-time listings and delistings, with historical membership and inclusion rules, before computing cross-sectional results. `bias_audit.json` records this unresolved limitation explicitly.
+- Spot and strike are positive prices. Time is a year fraction using 365 days for crypto option expiries. Rates, yields, and volatility are annualized decimals (`0.20` means 20%).
+- Black–Scholes supports European exercise. At expiry or zero volatility, it returns the deterministic discounted payoff; Greeks are zero at these degenerate points.
+- The CRR tree supports European and American calls and puts with early exercise at each node. It rejects invalid risk-neutral probabilities instead of silently returning a price.
+- European Monte Carlo uses terminal payoffs. American Monte Carlo uses Longstaff–Schwartz regression with a quadratic basis in log-moneyness. Both use antithetic paths and a normal-approximation 95% interval based on antithetic pair averages; for the American estimator, this interval does not include uncertainty from estimating the exercise policy.
+- IV inversion uses market price midpoint, BTC option index, exchange-reported risk-free rate, zero continuous yield, and time from the index timestamp to contract expiry.
+- The surface fits a weighted quadratic in implied volatility against log-forward-moneyness for each expiry. Tenor interpolation is linear in total variance. The fit is diagnostic, has no butterfly-arbitrage guarantee, and reports calendar total-variance violations instead of hiding them.
 
-## Models and numerical choices
+## Scope and limitations
 
-- **Black–Scholes–Merton:** European options, continuous compounding, continuous dividend yield. Greeks are analytic. At expiry and zero volatility, pricing uses the discounted deterministic payoff; Greeks are set to zero because the classical derivatives are discontinuous or degenerate there.
-- **CRR tree:** supports early exercise at each node. Computational cost is `O(N²)` time and `O(N)` memory for `N` steps. If the risk-neutral probability falls outside `[0, 1]`, the C++ routine rejects the tree rather than returning a misleading value; raise steps or use a different lattice for difficult parameter sets.
-- **Monte Carlo:** antithetic paths and a fixed default seed. The reported standard error is calculated from antithetic pair averages; confidence bounds use a normal approximation. This interval is not a guarantee, especially for small samples, tail risk, or discontinuous payoffs.
-- **Implied volatility:** maintains a bracketing interval and accepts Newton updates only while they remain inside it. Unsafe steps fall back to bisection. Quotes at or outside theoretical bounds have no finite usable solution and return `nullopt` in C++ / `NaN` in Python.
+The ten-year dataset is **underlying spot history**, not ten years of option quotes. Binance's live options API supplied the timestamped cross-sectional snapshot above; it does not give this project a historical point-in-time option chain for a backtest. The historical spot-derived option marks are theoretical illustrations based on realized volatility, not observed premiums or implied volatility.
 
-## Real-world integration checklist
+The saved options surface is a current snapshot, not a streaming feed. Its 622 contracts are the active BTCUSDT contracts returned at capture, so the snapshot cannot be used to study past contract-universe membership or survivorship across delisted options. The dataset contains one requested underlying and is not a multi-asset portfolio backtest. Quote timestamps are captured per endpoint; the responses are close in time but not an exchange-atomic snapshot. Wide or illiquid prices can produce large IV discrepancies, as visible in the reported RMSE. No trade execution, fees, slippage, margin, or strategy PnL is simulated.
 
-Before connecting a market feed, the application layer should own and record:
-
-1. **Quote hygiene:** bid/ask ordering, crossed markets, zero bids, stale timestamps, venue and sequence gaps, outliers, and whether the input is bid, ask, midpoint, or a filtered mark.
-2. **Contract identity:** multiplier, deliverable, adjusted options, exercise/settlement style, exercise cut-off, expiry timestamp, and market holiday calendar.
-3. **Time and rates:** timestamp timezone, trading/session cut-off, day-count convention, curve source/interpolation, borrow, discrete dividends, and funding assumptions. `time_to_expiry` is a year fraction supplied by the caller.
-4. **Surface construction:** solve only eligible quotes, preserve quote quality and solver status, enforce static arbitrage checks, choose a documented interpolation/extrapolation rule, and avoid treating sparse noisy points as truth.
-5. **Operations:** capture model/config version, input snapshot, latency distribution (p50/p95/p99), solver failures, and price-versus-market residuals. Do not log secrets or unrestricted feed payloads.
-
-Volterra deliberately accepts normalized contract inputs; it does not infer any of these conventions from a ticker or timestamp.
-
-## Performance and results
-
-The analytic formula is constant work per contract; the tree and simulation trade runtime for model features or statistical precision. **No benchmark has been run or published for this repository yet.** Results should be measured on the target compiler, CPU, build mode, and workload. Record warm-up policy, repetitions, compiler flags, path/step counts, and p50/p95/p99 alongside throughput. `-march=native` is optional and off by default so default builds remain portable.
-
-## Current scope and next milestones
-
-- [x] C++ European BSM price and Greeks
-- [x] American/European CRR tree
-- [x] Reproducible European antithetic Monte Carlo
-- [x] Safeguarded European implied volatility
-- [x] NumPy broadcasting for European analytics
-- [ ] Dedicated test suite and high-precision edge-case fixtures
-- [x] Historical Binance BTCUSDT spot downloader and reproducible CSV study output
-- [ ] Live feed adapters, normalized quote schema, and stale/crossed quote policy
-- [ ] Curve and dividend schedule interfaces
-- [ ] Surface calibration with weighting, arbitrage diagnostics, and fit reports
-- [ ] American Monte Carlo via Longstaff–Schwartz, with regression diagnostics
-- [ ] Reproducible benchmark harness and published target-hardware results
-- [ ] Python bindings to the C++ core
-
-## Conventions
-
-- Spot and strike: positive price units.
-- Time: years under the caller-selected day-count convention.
-- Rate, dividend yield, volatility: annualized decimals (`0.20` means 20%).
-- Greeks: derivatives in price units per unit input; vega is not per volatility point.
+The C++ engine and Python research layer are separate implementations; Python bindings to the C++ library are not included. Results validate this prototype's numerical models and data workflow, not production trading performance.
 
 ## License
 

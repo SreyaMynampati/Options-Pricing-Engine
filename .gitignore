@@ -7,3 +7,8 @@ __pycache__/
 *.dll
 .venv/
 .pytest_cache/
+# Prevent accidentally committing local SSH credentials generated in this folder.
+/clear
+/clear.pub
+*.pem
+*.key

@@ -3,6 +3,7 @@ project(volterra_options VERSION 0.1.0 LANGUAGES CXX)
 
 option(VOLTERRA_BUILD_EXAMPLES "Build command-line examples" ON)
 option(VOLTERRA_BUILD_TESTS "Build numerical validation tests" ON)
+option(VOLTERRA_BUILD_BENCHMARKS "Build reproducible pricing benchmarks" ON)
 option(VOLTERRA_ENABLE_NATIVE "Enable host-specific compiler optimizations" OFF)
 
 add_library(volterra src/options.cpp)
@@ -28,4 +29,9 @@ if(VOLTERRA_BUILD_TESTS)
   add_executable(volterra_tests tests/options_tests.cpp)
   target_link_libraries(volterra_tests PRIVATE volterra::volterra)
   add_test(NAME volterra_numerics COMMAND volterra_tests)
+endif()
+
+if(VOLTERRA_BUILD_BENCHMARKS)
+  add_executable(volterra_bench benchmarks/pricing_bench.cpp)
+  target_link_libraries(volterra_bench PRIVATE volterra::volterra)
 endif()

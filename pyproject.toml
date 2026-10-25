@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "volterra-options"
 version = "0.1.0"
-description = "Numerically careful options pricing research engine"
+description = "Mathematical-finance engine for risk-neutral derivative pricing, Greeks, optimal stopping, Monte Carlo, and implied volatility"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["numpy>=1.24"]

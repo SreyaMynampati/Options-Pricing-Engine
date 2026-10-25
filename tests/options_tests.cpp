@@ -77,6 +77,20 @@ int main() {
     check(mc1.confidence_low<=analytical && analytical<=mc1.confidence_high,"Monte Carlo 95% interval covers analytic reference");
     check(mc1.standard_error>0 && mc1.paths==200000,"Monte Carlo standard error and path count");
 
+    auto lsm_contract=contract(OptionType::put,ExerciseStyle::american,100,100,1,.05,0,.2);
+    const auto lsm=american_monte_carlo_price(lsm_contract,120000,100,42);
+    const double tree_reference=binomial_price(lsm_contract,1000);
+    check(std::abs(lsm.price-tree_reference)<.20,"Longstaff-Schwartz American put agrees with CRR reference");
+    check(lsm.confidence_low<=tree_reference+.05 && tree_reference<=lsm.confidence_high+.05,
+          "Longstaff-Schwartz American put confidence interval is consistent with CRR");
+    check(lsm.paths==120000 && lsm.standard_error>0,"American Monte Carlo path count and standard error");
+    const auto lsm_repeat=american_monte_carlo_price(lsm_contract,120000,100,42);
+    close(lsm.price,lsm_repeat.price,0,"American Monte Carlo seed reproducibility");
+    auto call_lsm=contract(OptionType::call,ExerciseStyle::american,100,100,1,.05,0,.2);
+    const auto call_lsm_result=american_monte_carlo_price(call_lsm,100000,50,99);
+    close(call_lsm_result.price,black_scholes(contract()).price,.20,
+          "non-dividend American call LSM agrees with European analytic price");
+
     for (const auto type : {OptionType::call,OptionType::put}) {
         for (double sigma : {.08,.2,.65,1.5}) {
             auto c=contract(type,ExerciseStyle::european,100,type==OptionType::call?112:88,.4,.025,.008,sigma);
@@ -99,6 +113,10 @@ int main() {
     try { auto bad=contract(OptionType::call,ExerciseStyle::american); (void)black_scholes(bad); }
     catch (const std::invalid_argument&) { threw=true; }
     check(threw,"Black-Scholes rejects American style");
+    threw=false;
+    try { (void)american_monte_carlo_price(contract(),1000,10,1); }
+    catch (const std::invalid_argument&) { threw=true; }
+    check(threw,"American Monte Carlo rejects European style");
 
     if (failures) { std::cerr << failures << " validation check(s) failed\n"; return EXIT_FAILURE; }
     std::cout << "All numerical validation checks passed.\n";

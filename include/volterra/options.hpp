@@ -61,6 +61,12 @@ void validate(const Contract& contract);
 [[nodiscard]] MonteCarloResult monte_carlo_price(
     const Contract& contract, std::uint64_t paths = 1'000'000, std::uint64_t seed = 42);
 
+// Longstaff-Schwartz least-squares Monte Carlo for American exercise.
+// Uses antithetic GBM paths and a quadratic continuation basis in log-moneyness.
+[[nodiscard]] MonteCarloResult american_monte_carlo_price(
+    const Contract& contract, std::uint64_t paths = 100'000,
+    std::size_t time_steps = 50, std::uint64_t seed = 42);
+
 // Safeguarded Newton solver: Newton steps are accepted only inside a maintained bracket;
 // otherwise a bisection step is used. European contracts only.
 [[nodiscard]] std::optional<ImpliedVolResult> implied_volatility(
