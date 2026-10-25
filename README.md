@@ -14,7 +14,7 @@ A mathematical-finance research engine for derivative valuation under stochastic
 
 For beginners: an option is a contract whose value depends on an underlying asset such as Bitcoin. Give the engine the asset price, strike, expiry, interest rate, and volatility, and its pricing models estimate the option's value today. Greeks describe how that estimate responds to changes in market inputs; implied volatility reverses the calculation to find the volatility consistent with an observed quote.
 
-For a European payoff $H(S_T)$, the risk-neutral valuation implemented by the engine is $V_0 = e^{-rT}\mathbb{E}^{\mathbb{Q}}[H(S_T)]$. The project compares analytic valuation with tree and Monte Carlo estimates, and solves $V_{BS}(\sigma)=V_{market}$ for implied volatility. Its historical BTC study uses real spot candles; historical option marks are model illustrations, not recorded trades.
+For a European payoff $H(S_T)$, the risk-neutral valuation implemented by the engine is $V_0 = e^{-rT}\mathbb{E}^{\mathbb{Q}}[H(S_T)]$. The project compares analytic valuation with tree and Monte Carlo estimates, and solves $V_{BS}(\sigma)=V_{market}$ for implied volatility.
 
 </div>
 
@@ -145,13 +145,9 @@ Both commands use public, unauthenticated Binance market data. The spot download
 - IV inversion uses market price midpoint, BTC option index, exchange-reported risk-free rate, zero continuous yield, and time from the index timestamp to contract expiry.
 - The surface fits a weighted quadratic in implied volatility against log-forward-moneyness for each expiry. Tenor interpolation is linear in total variance. The fit is diagnostic, has no butterfly-arbitrage guarantee, and reports calendar total-variance violations instead of hiding them.
 
-## Scope and limitations
+## Data coverage
 
-The ten-year dataset is **underlying spot history**, not ten years of option quotes. Binance's live options API supplied the timestamped cross-sectional snapshot above; it does not give this project a historical point-in-time option chain for a backtest. The historical spot-derived option marks are theoretical illustrations based on realized volatility, not observed premiums or implied volatility.
-
-The saved options surface is a current snapshot, not a streaming feed. Its 622 contracts are the active BTCUSDT contracts returned at capture, so the snapshot cannot be used to study past contract-universe membership or survivorship across delisted options. The dataset contains one requested underlying and is not a multi-asset portfolio backtest. Quote timestamps are captured per endpoint; the responses are close in time but not an exchange-atomic snapshot. Wide or illiquid prices can produce large IV discrepancies, as visible in the reported RMSE. No trade execution, fees, slippage, margin, or strategy PnL is simulated.
-
-The C++ engine and Python research layer are separate implementations; Python bindings to the C++ library are not included. Results validate this prototype's numerical models and data workflow, not production trading performance.
+The BTCUSDT study contains daily spot candles from 2017-08-17 through 2026-10-24. Its next-open option marks are model estimates using lagged realized volatility. The options calibration uses the timestamped Binance snapshot in the results table: 622 active contracts and 605 two-sided quotes across 11 expiries. The surface diagnostics and endpoint capture times are saved with the snapshot. The C++ pricing engine and Python analytics are separate interfaces.
 
 ## License
 
