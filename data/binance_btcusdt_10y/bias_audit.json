@@ -1,0 +1,16 @@
+{
+  "lookahead_bias": {
+    "status": "lagged_for_illustrative_option_marks",
+    "signal_information_cutoff": "The 30 daily log returns ending at signal_date_utc close.",
+    "execution_assumption": "Next consecutive UTC daily candle open; signal feature is not recomputed with that candle.",
+    "same_close_execution": "prohibited by this output schema",
+    "limitations": "No option quote or strategy PnL exists in this study; marks are hypothetical model values."
+  },
+  "survivorship_bias": {
+    "status": "not_applicable_to_single_asset_descriptive_series; unresolved_for_multi_asset_inference",
+    "universe_size": 1,
+    "ledger_file": "universe_ledger.csv",
+    "limitations": "A present-day BTCUSDT history is not a delisted-inclusive, point-in-time Binance asset universe. Do not use it to claim cross-sectional strategy performance.",
+    "required_for_universe_backtest": "Point-in-time symbol membership including delisted/renamed pairs, listing and delisting dates, and inclusion rules fixed as of each historical date."
+  }
+}

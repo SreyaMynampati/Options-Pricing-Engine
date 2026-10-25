@@ -1,0 +1,42 @@
+{
+  "provider": "Binance public Spot REST API",
+  "endpoint": "https://data-api.binance.vision/api/v3/klines",
+  "symbol": "BTCUSDT",
+  "interval": "1d",
+  "timezone": "UTC",
+  "requested_start_utc": "2016-10-27T00:00:00+00:00",
+  "requested_end_utc": "2026-10-24T23:59:59.999000+00:00",
+  "actual_first_candle_utc": "2017-08-17T00:00:00+00:00",
+  "actual_last_candle_utc": "2026-10-24T00:00:00+00:00",
+  "candle_count": 3356,
+  "risk_free_rate_assumption": 0.0,
+  "option_study": "Illustrative 30-calendar-day ATM BSM marks at next consecutive UTC daily open, using trailing realized volatility available at prior close; not observed option quotes or implied volatility.",
+  "files": [
+    "binance_spot_daily.csv",
+    "illustrative_options.csv",
+    "universe_ledger.csv",
+    "bias_audit.json"
+  ],
+  "bias_audit": {
+    "lookahead_bias": {
+      "status": "lagged_for_illustrative_option_marks",
+      "signal_information_cutoff": "The 30 daily log returns ending at signal_date_utc close.",
+      "execution_assumption": "Next consecutive UTC daily candle open; signal feature is not recomputed with that candle.",
+      "same_close_execution": "prohibited by this output schema",
+      "limitations": "No option quote or strategy PnL exists in this study; marks are hypothetical model values."
+    },
+    "survivorship_bias": {
+      "status": "not_applicable_to_single_asset_descriptive_series; unresolved_for_multi_asset_inference",
+      "universe_size": 1,
+      "ledger_file": "universe_ledger.csv",
+      "limitations": "A present-day BTCUSDT history is not a delisted-inclusive, point-in-time Binance asset universe. Do not use it to claim cross-sectional strategy performance.",
+      "required_for_universe_backtest": "Point-in-time symbol membership including delisted/renamed pairs, listing and delisting dates, and inclusion rules fixed as of each historical date."
+    }
+  },
+  "realized_vol_30d_summary": {
+    "last_signal_vol": 0.24690792914161686,
+    "median": 0.5503993011090327,
+    "min": 0.16756111784988637,
+    "max": 2.1177721940780914
+  }
+}

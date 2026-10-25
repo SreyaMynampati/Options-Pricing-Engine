@@ -1,0 +1,2 @@
+symbol,first_observed_utc,last_observed_utc,delisting_status,selection_rule,coverage_limit
+BTCUSDT,2017-08-17T00:00:00+00:00,2026-10-24T00:00:00+00:00,unknown; current pair observed,explicit single-symbol request; no cross-sectional ranking,not a historical point-in-time Binance universe

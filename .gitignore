@@ -1,0 +1,9 @@
+/build/
+/cmake-build-*/
+__pycache__/
+*.py[cod]
+*.so
+*.dylib
+*.dll
+.venv/
+.pytest_cache/
